@@ -17,8 +17,8 @@ public class UserHitsService {
 	@Autowired
 	Values propertiesReader;
 	
-	public int saveUserHitInfo(String hostName,String hostIp,int packId) {
-		UserHits userhit = new UserHits(hostIp,propertiesReader.getInterfacee(),packId,"CURRENT_TIMESTAMP()",hostName,propertiesReader.getBp(),propertiesReader.getPublisher());
+	public int saveUserHitInfo(String hostName,String hostIp,int packId,String bp,String publisher,String interfacee) {
+		UserHits userhit = new UserHits(hostIp,interfacee,packId,"CURRENT_TIMESTAMP()",hostName,bp,publisher);
 		return userhitdao.insertdetails(userhit);
 	}
 }

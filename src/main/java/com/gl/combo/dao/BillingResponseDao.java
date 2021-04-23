@@ -26,7 +26,7 @@ public class BillingResponseDao {
 	@Autowired
 	Values propertiesReader;
 	
-	public int insertdetails(BillingResponse b) {
+	public int insertdetails(BillingResponse b,String bp,String action) {
 		try {
 			logger.info("inserting into table com_billing_response");
 			String query="insert into com_billing_response(calling_party,serviceId,serviceType,requestPlan,sequenceNo,chargeAmount,appliedPlan,discountPlan,validityDays,operationId,createdon,bearerId,errorCode,result,contentId,category,optParam1,optParam2,optParam3,optParam4,optParam5,same_day_churn,biller_id,action,publisher) "
@@ -59,8 +59,8 @@ public class BillingResponseDao {
 							ps.setString(19,"");
 							ps.setString(20,"");
 							ps.setInt(21,0);
-							ps.setString(22,propertiesReader.getBp());
-							ps.setString(23,"NA");
+							ps.setString(22,bp);
+							ps.setString(23,action);
 							ps.setString(24,propertiesReader.getPublisher());
 							return ps;
 						}

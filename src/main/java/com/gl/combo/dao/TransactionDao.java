@@ -34,11 +34,11 @@ public class TransactionDao {
 	@Autowired
 	PacksDao packsDao;
 	
-	public int insertdetails(Transaction t) {
+	public long insertdetails(Transaction t,String userType,String msisdn) {
 		try {
 			logger.info("inserting into table com_transaction");
-			String query="insert into com_transaction(subscribed_user_id,transaction_unique_id,pack_id,interface,biller_id,hit_id,publisher,adnetwork_id,product_id,requested_price) "
-					+ "values(?,?,?,?,?,?,?,?,?,?,?)";
+			String query="insert into com_transaction(subscribed_user_id,transaction_unique_id,pack_id,interface,biller_id,hit_id,publisher,adnetwork_id,product_id,requested_price,user_type,msisdn) "
+					+ "values(?,?,?,?,?,?,?,?,?,?,?,?)";
 			logger.info("query: "+query);
 
 
@@ -61,7 +61,7 @@ public class TransactionDao {
 					new PreparedStatementCreator() {
 						public PreparedStatement createPreparedStatement(Connection connection) throws SQLException {
 							PreparedStatement ps =
-									connection.prepareStatement(query, new String[] {"id"});
+									connection.prepareStatement(query, new String[] {"transaction_id"});
 							ps.setInt(1, t.getSubscribedUserId());
 							ps.setString(2, t.getTransactionUniqueId());
 							ps.setInt(3, t.getPackId());
@@ -72,15 +72,17 @@ public class TransactionDao {
 							ps.setString(8, t.getAdnetworkId());
 							ps.setString(9, t.getProductId());
 							ps.setFloat(10, t.getRequestedPrice());
+							ps.setString(11, userType);
+							ps.setString(12, msisdn);
 							return ps;
 						}
 					},
 					keyHolder);
 			
-			return Integer.parseInt(""+keyHolder.getKey());
+			return (long) keyHolder.getKey();
 			}
 		catch(Exception e) {
-			System.out.println("exception while inserting in table com_transaction: "+e);
+			logger.info("exception while inserting in table com_transaction: "+e);
 			return 0;
 		}
 	}
@@ -93,16 +95,31 @@ public class TransactionDao {
 			jdbcTemplate.execute(query);
 		return 1;
 		}catch(Exception e) {
-			System.out.println("exception while updating cg in table com_transaction table: "+e);
+			logger.info("exception while updating cg in table com_transaction table: "+e);
 			e.printStackTrace();
 			return 0;
+		}
+	}
+	
+	public int updateMsisdn(String transId,String msisdn) {
+		try {
+			logger.info("updating msidn in table com_transaction");
+			String query="update com_transaction set msisdn='"+msisdn+"' where transaction_id="+transId;
+			logger.info("query: "+query);
+			jdbcTemplate.execute(query);
+			return 0;
+		} catch (Exception e) {
+			// TODO: handle exception
+			logger.info("exception while updating msisdn in table com_transaction table: "+e);
+			e.printStackTrace();
+			return -1;
 		}
 	}
 	
 	public int updateBillingTransaction(Transaction t) {
 		try {
 			logger.info("updating after callback in table com_transaction");
-			String query="update com_transaction set session_id='"+t.getSessionId()+"', requested_price="+t.getRequestedPrice()+",billing_status='PENDD' where billing_status='INT' and msisdn='"+t.getMsisdn()+"' and biller_id='"+propertiesReader.getBp()+"' and publisher='"+propertiesReader.getPublisher()+"'";
+			String query="update com_transaction set session_id='"+t.getSessionId()+"', requested_price="+t.getRequestedPrice()+",billing_status='PENDD' where billing_status='INT' and msisdn='"+t.getMsisdn()+"' and publisher='"+propertiesReader.getPublisher()+"'";
 			logger.info("query: "+query);
 			jdbcTemplate.execute(query);
 			logger.info("updated billing transaction");
@@ -114,15 +131,45 @@ public class TransactionDao {
 		}
 	}
 	
-	public int updateChargeAmmountAndBillingStatus(String msisdn,String serviceId) {
+	public int updateChargeAmmountAndBillingStatus(String msisdn,String serviceId,String billingStatus) {
 		try {
-			Packs cp = packsDao.getPackDetails(serviceId);
+			Packs cp = packsDao.getPackDetails(Integer.parseInt(serviceId));
 			logger.info("updating billing status and price deducted in com_transaction table");
-			String query="update com_transaction set price_deducted='"+cp.getPrice()+"', billing_status='DONE'"+"where msisdn='"+msisdn+"' and biller_id='"+propertiesReader.getBp()+"' and publisher='"+propertiesReader.getPublisher()+"' order by transaction_id desc limit 1";
+			String query="update com_transaction set price_deducted='"+cp.getPrice()+"', billing_status='"+billingStatus+"', transaction_time=current_timestamp "+"where msisdn='"+msisdn+"' and publisher='"+propertiesReader.getPublisher()+"' order by transaction_id desc limit 1";
 			logger.info("query: "+query);
-			jdbcTemplate.execute(query);
-			logger.info("updated transaction billing status and price deducted");
-			return 1;
+			int rowsAffected = jdbcTemplate.update(query);
+			logger.info("updated transaction billing status and price deducted=>"+rowsAffected);
+			return rowsAffected;
+		}catch(Exception e) {
+			logger.info("exception while updating billing status and price deducted in com_transaction Table : "+e);
+			e.printStackTrace();
+			return 0;
+		}
+	}
+	public int updateChargeAmmountAndBillingStatusForMobily(String msisdn,String serviceId,String billingStatus) {
+		try {
+			Packs cp = packsDao.getPackDetails(Integer.parseInt(serviceId));
+			logger.info("updating billing status and price deducted in com_transaction table");
+			String query="update com_transaction set price_deducted='0.00', billing_status='"+billingStatus+"', transaction_time=current_timestamp, msisdn='"+msisdn+"', consent=1 where publisher='"+propertiesReader.getPublisher()+"' and biller_id='"+cp.getBillerId()+"' and consent=0 and transaction_time>current_timestamp - interval 24 HOUR order by transaction_id desc limit 1";
+			logger.info("query: "+query);
+			int rowsAffected = jdbcTemplate.update(query);
+			logger.info("updated transaction billing status and price deducted=>"+rowsAffected);
+			return rowsAffected;
+		}catch(Exception e) {
+			logger.info("exception while updating billing status and price deducted in com_transaction Table : "+e);
+			e.printStackTrace();
+			return 0;
+		}
+	}
+	public int updateChargeAmmountAndBillingStatusForZain(String msisdn,String serviceId,String billingStatus) {
+		try {
+			Packs cp = packsDao.getPackDetails(Integer.parseInt(serviceId));
+			logger.info("updating billing status and price deducted in com_transaction table");
+			String query="update com_transaction set price_deducted='0.00', billing_status='"+billingStatus+"', transaction_time=current_timestamp "+"where msisdn='"+msisdn+"' and publisher='"+propertiesReader.getPublisher()+"' order by transaction_id desc limit 1";
+			logger.info("query: "+query);
+			int rowsAffected = jdbcTemplate.update(query);
+			logger.info("updated transaction billing status and price deducted=>"+rowsAffected);
+			return rowsAffected;
 		}catch(Exception e) {
 			logger.info("exception while updating billing status and price deducted in com_transaction Table : "+e);
 			e.printStackTrace();

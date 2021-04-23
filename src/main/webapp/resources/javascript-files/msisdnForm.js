@@ -46,9 +46,11 @@ $("#oplist").change(function () {
 // MSISDN subscriber
 function subscribe() {
 
+	comTxn();
 	$(".error").html("").hide();
 	var number = $("#msisdn").val();
 	var keyValue = $("#oplist").val();
+	var interfacee = $("body").attr("data-interfacee");
 	if (number.length == 12 && number != null) {
 
 		$.ajax({
@@ -62,7 +64,7 @@ function subscribe() {
 				console.log(data);
 				if (data['data']['sent'] == 1) {
 					window.location.href = "./otp/form?key="
-							+ keyValue + "&mobile=" + number;
+							+ keyValue + "&mobile=" + number+"&interfacee=" + interfacee;
 				}
 
 				else {
@@ -89,4 +91,24 @@ function subscribe() {
 		$(".error").show();
 	}
 	return false;
+}
+
+function comTxn(){
+	var transid = $("body").attr("data-transid");
+	var number = $("#msisdn").val();
+	$.ajax({
+		url : './comTxn',
+		type : 'GET',
+			data :'tid='+transid+'&msisdn='+number,
+			dataType: 'json',
+			contentType : 'application/json',
+			mimeType : 'application/json',
+		success: function (data, textStatus, jqXHR) {
+	
+		},
+		error: function (jqXHR, textStatus, errorThrown) {
+		
+		}
+
+	});
 }

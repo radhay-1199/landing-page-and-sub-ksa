@@ -48,6 +48,15 @@ public class Values {
 	@Value("${pack_id}")
 	private int packId;
 	
+	@Value("${biller_id_stc}")
+	private String billerIdStc;
+	
+	@Value("${biller_id_mobily}")
+	private String billerIdMobily;
+	
+	@Value("${biller_id_zain}")
+	private String billerIdZain;
+	
 	public String getApiKey() {
 		return apiKey;
 	}
@@ -158,6 +167,30 @@ public class Values {
 
 	public void setPackId(int packId) {
 		this.packId = packId;
+	}
+
+	public String getBillerIdStc() {
+		return billerIdStc;
+	}
+
+	public void setBillerIdStc(String billerIdStc) {
+		this.billerIdStc = billerIdStc;
+	}
+
+	public String getBillerIdMobily() {
+		return billerIdMobily;
+	}
+
+	public void setBillerIdMobily(String billerIdMobily) {
+		this.billerIdMobily = billerIdMobily;
+	}
+
+	public String getBillerIdZain() {
+		return billerIdZain;
+	}
+
+	public void setBillerIdZain(String billerIdZain) {
+		this.billerIdZain = billerIdZain;
 	}
 	
 }

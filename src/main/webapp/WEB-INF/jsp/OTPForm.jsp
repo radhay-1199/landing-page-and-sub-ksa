@@ -62,7 +62,8 @@ body.loading .modal {
 </head>
 <body  data-mobile="${not empty param.mobile ? param.mobile : 'null'}"
 data-key-value="${not empty param.key ? param.key : 'null'}"
-data-lang-param="${pageContext.response.locale}">
+data-lang-param="${pageContext.response.locale}"
+data-interfacee="${not empty param.interfacee ? param.interfacee : 'null'}">
 <div class="container-fluid back">
 	<div class="langDropdown" dir="ltr">
 			<select class="browser-default select-lang-drpdwn-fp" id="langlist">
@@ -88,7 +89,12 @@ data-lang-param="${pageContext.response.locale}">
 </form>
 <%-- <a href="<?php echo $url; ?>" class="button primary-button" style="margin: auto;">خروج</a> --%>
 </div>
-	<%-- <p class="desc"  ><spring:message code="disclaimer" /></p> --%></div>
+	 <p class="desc"  >
+	 	<c:if test="${param.key == 1}">
+ 			<spring:message code="disclaimerStc" />
+    	</c:if>
+    </p>
+</div>
 
 
 <!-- <div class="footer">

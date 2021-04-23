@@ -3,8 +3,9 @@ package com.gl.combo.controller;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Optional;
 
@@ -14,20 +15,21 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.gl.combo.bean.ComTxn;
+import com.gl.combo.bean.Packs;
 import com.gl.combo.configuration.Values;
+import com.gl.combo.dao.PacksDao;
 import com.gl.combo.feign.Feign;
 import com.gl.combo.model.CheckSubscription;
+import com.gl.combo.model.InAppTrans;
 import com.gl.combo.model.SendFreeMt;
 import com.gl.combo.model.SendPincode;
 import com.gl.combo.model.SubscribeWithPincode;
 import com.gl.combo.model.Unsubscribe;
 import com.gl.combo.service.BillingResponseService;
+import com.gl.combo.service.InAppTransService;
 import com.gl.combo.service.SubscribedUsersDetailsService;
 import com.gl.combo.service.TransactionService;
 import com.google.gson.Gson;
@@ -68,6 +70,12 @@ public class MainController {
 	@Autowired
 	BillingResponseService billingResponseService;
 	
+	@Autowired
+	InAppTransService inAppTransService;
+	
+	@Autowired
+	PacksDao packs;
+	
 	@GetMapping("/notification")
 	public ResponseEntity<?> notificationForward(@RequestParam int service_connection_id, @RequestParam String msisdn, @RequestParam String user_id, @RequestParam String notification_id, @RequestParam String notification_time, @RequestParam String action){
 		logger.info("Request to notification forward controller: msisdn=>"+msisdn+" | service_connection_id=>"+service_connection_id+" | user_id=>"+user_id+" | notification_id=>"+notification_id+" | notification_time=>"+notification_time+" | action=>"+action);
@@ -82,27 +90,53 @@ public class MainController {
 		}
 		logger.info("service_connection_id: "+service_connection_id+" | msisdn: "+msisdn+" | user_id: "+user_id+" | notification_id: "+notification_id+" | notification_time: "+notification_time+" | notificationTime(decoded): "+notificationTime+" | action: "+action);
 		try {
+			String bp="";
+			if(service_connection_id == val.getStcServiceId()) {
+				bp=val.getBillerIdStc();
+			}else if(service_connection_id == val.getMobilyServiceId()) {
+				bp=val.getBillerIdMobily();
+			}else if(service_connection_id == val.getZainServiceId()) {
+				bp=val.getBillerIdZain();
+			}
 			if(action.equals("sub")) {
-				subscribedUsersDetailsService.subscribedUsersDetailsInfo(msisdn, notification_id);
-				transactionService.updateBillingTransactionCharge(msisdn, Integer.toString(service_connection_id));
-				billingResponseService.billingResponseInfo(msisdn, service_connection_id, user_id, "SN", notification_id);
+				//free trial mobily
+				DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");  
+				LocalDateTime now = LocalDateTime.now();
+				if(service_connection_id == val.getMobilyServiceId()) {
+					subscribedUsersDetailsService.subscribedUsersDetailsInfo(msisdn, notification_id,bp,dtf.format(now.plusDays(3)),"NA");
+					transactionService.updateBillingTransactionChargeForMobily(msisdn, Integer.toString(service_connection_id),"DONE");
+				}
+				else if(service_connection_id == val.getZainServiceId())
+				{
+					subscribedUsersDetailsService.subscribedUsersDetailsInfo(msisdn, notification_id,bp,dtf.format(now),"NA");
+					transactionService.updateBillingTransactionChargeForZain(msisdn, Integer.toString(service_connection_id),"DONE");
+				}
+				else {
+					
+					subscribedUsersDetailsService.subscribedUsersDetailsInfo(msisdn, notification_id,bp,dtf.format(now.plusDays(1)),dtf.format(now));
+					transactionService.updateBillingTransactionCharge(msisdn, Integer.toString(service_connection_id),"DONE");
+					billingResponseService.billingResponseInfo(msisdn, service_connection_id, user_id, "SN", notification_id,bp,"ACT");
+				}
 				//send content
 				this.sendFreeMt(msisdn, service_connection_id);
 			}else if(action.equals("unsub")) {
-				subscribedUsersDetailsService.unsubscribedUsersDetailsInfo(msisdn);
+				subscribedUsersDetailsService.unsubscribedUsersDetailsInfo(msisdn,service_connection_id);
+				billingResponseService.billingResponseInfo(msisdn, service_connection_id, user_id, "SS", notification_id,bp,"DCT");
 			}else if(action.equals("renewal")) {
-				billingResponseService.billingResponseInfo(msisdn, service_connection_id, user_id, "RR", notification_id);
+				billingResponseService.billingResponseInfo(msisdn, service_connection_id, user_id, "RR", notification_id,bp,"REN");
+				//transactionService.updateBillingTransactionCharge(msisdn, Integer.toString(service_connection_id));
 				subscribedUsersDetailsService.updateRenewalInfo(msisdn, Integer.toString(service_connection_id));
 			}else if(action.equals("deactivated")) {
 				if(service_connection_id == val.getStcServiceId()) {
-					subscribedUsersDetailsService.unsubscribedUsersDetailsInfo(msisdn);
+					subscribedUsersDetailsService.unsubscribedUsersDetailsInfo(msisdn,service_connection_id);
 				}else if(service_connection_id == val.getMobilyServiceId() || service_connection_id == val.getZainServiceId()) {
-					subscribedUsersDetailsService.suspendAndUnsuspendUser(msisdn,0);
-				}
+					subscribedUsersDetailsService.suspendAndUnsuspendUser(msisdn,0,service_connection_id);
+				}	
 			}else if(action.equals("suspend")) {
-				subscribedUsersDetailsService.suspendAndUnsuspendUser(msisdn,0);
+				subscribedUsersDetailsService.suspendAndUnsuspendUser(msisdn,0,service_connection_id);
 			}else if(action.equals("unsuspend")) {
-				subscribedUsersDetailsService.suspendAndUnsuspendUser(msisdn,1);
+				subscribedUsersDetailsService.suspendAndUnsuspendUser(msisdn,1,service_connection_id);
+				billingResponseService.billingResponseInfo(msisdn, service_connection_id, user_id, "RR", notification_id,bp,"REN");
 			}else if(action.equals("first_charge")) {
 				
 			}
@@ -165,6 +199,7 @@ public class MainController {
 			// TODO: handle exception
 			logger.info("Exception in send pincode controller: "+e.getMessage());
 			e.printStackTrace();
+			return new ResponseEntity<>(e.getMessage(), HttpStatus.EXPECTATION_FAILED);
 		}
 		return new ResponseEntity<>(Optional.empty(), HttpStatus.EXPECTATION_FAILED);
 	}
@@ -192,6 +227,7 @@ public class MainController {
 			// TODO: handle exception
 			logger.info("Exception in verify pincode controller: "+e.getMessage());
 			e.printStackTrace();
+			return new ResponseEntity<>(e.getMessage(), HttpStatus.EXPECTATION_FAILED);
 		}
 		return new ResponseEntity<>(Optional.empty(), HttpStatus.EXPECTATION_FAILED);
 	}
@@ -219,6 +255,95 @@ public class MainController {
 			// TODO: handle exception
 			logger.info("Exception in unsubscribe controller: "+e.getMessage());
 			e.printStackTrace();
+		}
+		return new ResponseEntity<>(Optional.empty(), HttpStatus.EXPECTATION_FAILED);
+	}
+	
+	@GetMapping("app/send_pin")
+	public ResponseEntity<?> sendPinApp(@RequestParam String msisdn,@RequestParam int key,@RequestParam(name = "interface",defaultValue = "supercombo_1_daily") String interfacae){
+		logger.info("Inside in app send_pin request");
+		logger.info("Request to send pincode controller: MSISDN=>"+msisdn+" | key=>"+key);
+		
+		String bp="";
+		if(key==1) {
+			bp=val.getBillerIdStc();
+		}else if(key==2) {
+			bp=val.getBillerIdMobily();
+		}else if(key==3) {
+			bp=val.getBillerIdZain();
+		}
+		
+		try {
+			//1 for stc  2 for mobily  3 for zain
+			if(key == 1) {
+				sendPincode = feign.sendPincode(val.getApiKey(), msisdn, val.getStcServiceId(), 0);
+				Packs cp = packs.getPackDetails(val.getStcServiceId());
+				//msisdn com_txn
+				long response = transactionService.saveTransactionInfo(val.getStcServiceId(),interfacae,val.getBillerIdStc(),val.getPublisher(),"0",cp.getPackId(),"app",msisdn);
+			}else if(key == 2) {
+				sendPincode = feign.sendPincode(val.getApiKey(), msisdn, val.getMobilyServiceId(), 0);
+				Packs cp = packs.getPackDetails(val.getMobilyServiceId());
+				long response = transactionService.saveTransactionInfo(val.getMobilyServiceId(),interfacae,val.getBillerIdMobily(),val.getPublisher(),"0",cp.getPackId(),"app",msisdn);
+			}else if(key == 3) {
+				sendPincode = feign.sendPincode(val.getApiKey(), msisdn, val.getZainServiceId(), 0);
+				Packs cp = packs.getPackDetails(val.getZainServiceId());
+				long response = transactionService.saveTransactionInfo(val.getZainServiceId(),interfacae,val.getBillerIdZain(),val.getPublisher(),"0",cp.getPackId(),"app",msisdn);
+			}
+			
+			Optional<SendPincode> optional = Optional.ofNullable(sendPincode);
+			if(optional.isPresent()) {
+				logger.info("Response from send pincode controller: "+sendPincode);
+				logger.info("Response To Json: "+new Gson().toJson(sendPincode));
+				inAppTransService.insertIntoInAppTrans(new InAppTrans("send_pin", msisdn, interfacae,new Gson().toJson(sendPincode),bp,sendPincode.getCode()));
+				return new ResponseEntity<>(sendPincode, HttpStatus.OK);
+			}
+		} catch (Exception e) {
+			// TODO: handle exception
+			logger.info("Exception in send pincode controller: "+e.getMessage());
+			inAppTransService.insertIntoInAppTrans(new InAppTrans("send_pin", msisdn, interfacae,e.getMessage(),bp,0));
+			e.printStackTrace();
+			return new ResponseEntity<>(e.getMessage(), HttpStatus.EXPECTATION_FAILED);
+		}
+		return new ResponseEntity<>(Optional.empty(), HttpStatus.EXPECTATION_FAILED);
+	}
+	
+	@GetMapping("app/verify_pin")
+	public ResponseEntity<?> verifyPinApp(@RequestParam String msisdn,@RequestParam int key,@RequestParam String pincode,@RequestParam(name = "interface",defaultValue = "supercombo_1_daily") String interfacae){
+		logger.info("Inside in app verify_pin request");
+		logger.info("Request to verify pin controller: MSISDN=>"+msisdn+" | key=>"+key+" | pincode=>"+pincode);
+		
+		String bp="";
+		if(key==1) {
+			bp=val.getBillerIdStc();
+		}else if(key==2) {
+			bp=val.getBillerIdMobily();
+		}else if(key==3) {
+			bp=val.getBillerIdZain();
+		}
+		
+		try {
+			//1 for stc  2 for mobily  3 for zain
+			if(key == 1) {
+				subscribeWithPincode = feign.subWithPin(val.getApiKey(), msisdn, val.getStcServiceId(), pincode);
+			}else if(key == 2) {
+				subscribeWithPincode = feign.subWithPin(val.getApiKey(), msisdn, val.getMobilyServiceId(), pincode);
+			}else if(key == 3) {
+				subscribeWithPincode = feign.subWithPin(val.getApiKey(), msisdn, val.getZainServiceId(), pincode);
+			}
+			
+			Optional<SubscribeWithPincode> optional = Optional.ofNullable(subscribeWithPincode);
+			if(optional.isPresent()) {
+				logger.info("Response from verify pincode controller: "+subscribeWithPincode);
+				logger.info("Response To Json: "+new Gson().toJson(subscribeWithPincode));
+				inAppTransService.insertIntoInAppTrans(new InAppTrans("verify_pin", msisdn, interfacae,new Gson().toJson(subscribeWithPincode),bp,subscribeWithPincode.getCode()));
+				return new ResponseEntity<>(subscribeWithPincode, HttpStatus.OK);
+			}
+		} catch (Exception e) {
+			// TODO: handle exception
+			logger.info("Exception in verify pincode controller: "+e.getMessage());
+			inAppTransService.insertIntoInAppTrans(new InAppTrans("verify_pin", msisdn, interfacae,e.getMessage(),bp,0));
+			e.printStackTrace();
+			return new ResponseEntity<>(e.getMessage(), HttpStatus.EXPECTATION_FAILED);
 		}
 		return new ResponseEntity<>(Optional.empty(), HttpStatus.EXPECTATION_FAILED);
 	}
@@ -253,11 +378,11 @@ public class MainController {
 		}
 	}
 	
-	@PostMapping("/comTxn") 
-	public ResponseEntity<?> userHit(@RequestBody ComTxn comTxn){
-		logger.info("inside comTxn controller: "+comTxn);
-		int response = transactionService.saveTransactionInfo(comTxn.getServiceID());
-		return new ResponseEntity<>(response, HttpStatus.OK);	
+	@GetMapping("/comTxn") 
+	public ResponseEntity<?> userHit(@RequestParam String tid,@RequestParam String msisdn){
+		logger.info("inside comTxn controller: TransId=>"+tid);
+		int response = transactionService.updateMsisdn(tid, msisdn);
+		return new ResponseEntity<>("Ok", HttpStatus.OK);	
 	}
 	/*
 	 * @GetMapping("/test") public ResponseEntity<?> test(){

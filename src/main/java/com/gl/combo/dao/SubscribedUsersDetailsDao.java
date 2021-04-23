@@ -31,12 +31,12 @@ public class SubscribedUsersDetailsDao {
 	@Autowired
 	Values propertiesReader;
 	
-	public int insertdetails(SubscribedUsersDetails s) {
+	public int insertdetails(SubscribedUsersDetails s,String date) {
 		try {
 			logger.info("inserting into table com_subscribed_users_details");
 			String query="insert into com_subscribed_users_details(biller_id,publisher,msisdn,pack_id,subscription_date,status,"
-					+ "exp_date,session_id,product_id)"
-					+ " values(?,?,?,?,"+s.getSubscriptionDate()+",?,"+s.getExpDate()+",?,?)";
+					+ "exp_date,next_renewal_date,session_id,product_id,billed_date)"
+					+ " values(?,?,?,?,"+s.getSubscriptionDate()+",?,?,?,?,?,?)";
 			logger.info("query: "+query);
 			KeyHolder keyHolder = new GeneratedKeyHolder();
 			jdbcTemplate.update(
@@ -49,8 +49,11 @@ public class SubscribedUsersDetailsDao {
 							ps.setString(3, s.getMsisdn());
 							ps.setInt(4,s.getPackId());
 							ps.setInt(5, s.getStatus());
-							ps.setString(6,s.getSessionId());
-							ps.setString(7,s.getProductId());
+							ps.setString(6,date);
+							ps.setString(7,date);
+							ps.setString(8,s.getSessionId());
+							ps.setString(9,s.getProductId());
+							ps.setString(10,s.getBilledDate());
 							return ps;
 						}
 					},
@@ -65,10 +68,10 @@ public class SubscribedUsersDetailsDao {
 		}
 	}
 	
-	public int updateDetails(String msisdn,Integer status) {
+	public int updateDetails(String msisdn,Integer status,String expDate) {
 		try {
 			logger.info("updating unsubscribed users details in table com_subscribed_users_details");
-			String query="update com_subscribed_users_details set unsubscription_date=CURRENT_TIMESTAMP(),status='"+status+"' where msisdn='"+msisdn+"' and publisher='"+propertiesReader.getPublisher()+"' and biller_id='"+propertiesReader.getBp()+"'";
+			String query="update com_subscribed_users_details set exp_date='"+expDate+"',next_renewal_date='NA', status='"+status+"' where msisdn='"+msisdn+"' and publisher='"+propertiesReader.getPublisher()+"'";
 			logger.info("query: "+query);
 			jdbcTemplate.execute(query);
 		return 1;
@@ -79,10 +82,10 @@ public class SubscribedUsersDetailsDao {
 		}
 	}
 	
-	public int suspend(String msisdn,int status) {
+	public int suspend(String msisdn,int status,String expDate) {
 		try {
 		logger.info("suspending user");
-		String query="update com_subscribed_users_details set status="+status+" where msisdn='"+msisdn+"' and publisher='"+propertiesReader.getPublisher()+"' and biller_id='"+propertiesReader.getBp()+"'";
+		String query="update com_subscribed_users_details set exp_date='"+expDate+"',next_renewal_date='"+expDate+"',status="+status+" where msisdn='"+msisdn+"' and publisher='"+propertiesReader.getPublisher()+"'";
 		logger.info("query: "+query);
 		jdbcTemplate.execute(query);
 	return 1;
@@ -93,10 +96,10 @@ public class SubscribedUsersDetailsDao {
 		}
 	}
 	
-	public int updateDetailsDaily(String msisdn,String expDate,String nextDate) {
+	public int updateDetailsDaily(String msisdn,String expDate) {
 		try {
 			logger.info("updating daily details in table com_subscribed_users_details");
-			String query="update com_subscribed_users_details set exp_date='"+expDate+"',next_renewal_date='"+nextDate+"' where msisdn='"+msisdn+"' and publisher='"+propertiesReader.getPublisher()+"' and biller_id='"+propertiesReader.getBp()+"'";
+			String query="update com_subscribed_users_details set exp_date='"+expDate+"',next_renewal_date='"+expDate+"' where msisdn='"+msisdn+"' and publisher='"+propertiesReader.getPublisher()+"'";
 			logger.info("query: "+query);
 			jdbcTemplate.execute(query);
 		return 1;

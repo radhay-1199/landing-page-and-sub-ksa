@@ -63,7 +63,9 @@ body.loading .modal {
 </style>
 </head>
 <body data-lang-param="${pageContext.response.locale}"
-data-key="${key}">
+data-key="${key}"
+data-interfacee="${interfacee}"
+data-transid="${t_id}">
 
 <div class="container-fluid back">
 		<div class="langDropdown" dir="ltr">

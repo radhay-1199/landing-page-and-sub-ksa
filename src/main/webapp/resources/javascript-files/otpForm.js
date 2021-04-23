@@ -39,7 +39,7 @@ function verifyOTP() {
 			mimeType : 'application/json',
 			success: function (data, textStatus, jqXHR) {
 				if(data['data']['subscribe'] == true){
-					comTxn();
+					//comTxn();
 					$("#frm-mobile-verification").hide();
 					$(".error").html("Thank You for Subscribing.<br>Your request is being processed");
 					$(".error").css('text-align','center');
@@ -80,12 +80,12 @@ if(keyValue == 1){
 }else if(keyValue == 3){
 	serviceId=2300;
 }
-
+	var interfacee = $("body").attr("data-interfacee");
 	var comTxn  ={
 			"msisdn":$('#msisdn').val(),
 			"productID":"1_SAR",
 			"price":"1.00",
-			"interfaceMedium":"supercombo_1_daily",   
+			"interfaceMedium":interfacee,   
 			"billerID":"sa",
 			"publisher":"supercombo",
 			"serviceID":serviceId

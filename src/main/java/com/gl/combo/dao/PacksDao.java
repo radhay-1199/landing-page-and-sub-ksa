@@ -23,10 +23,10 @@ public class PacksDao {
 	@Autowired
 	Values propertiesReader;
 	
-	public Packs getPackDetails(String serviceId) {
+	public Packs getPackDetails(int serviceId) {
 		try {
 			logger.info("Getting pack details for service id: "+serviceId);
-			String query="select * from com_packs where service_id='"+serviceId+"' and publisher='"+propertiesReader.getPublisher()+"' and biller_id='"+propertiesReader.getBp()+"'";
+			String query="select * from com_packs where service_id='"+serviceId+"' and publisher='"+propertiesReader.getPublisher()+"'";
 			logger.info("Query: "+query);
 			return jdbcTemplate.query(query, new ResultSetExtractor<Packs>() {
 				@Override

@@ -27,7 +27,7 @@ public class SubscriptionDao {
 	
 	public Integer checkSubscriber(String msisdn) {
 		logger.info("Checking if msisdn is subscriber or not");
-		String query="select count(detail_id) as count from com_subscribed_users_details where msisdn='"+msisdn+"' and biller_id='"+propertiesReader.getBp()+"' and publisher='"+propertiesReader.getPublisher()+"'";
+		String query="select count(detail_id) as count from com_subscribed_users_details where msisdn='"+msisdn+"' and publisher='"+propertiesReader.getPublisher()+"'";
 		logger.info("Query: "+query);
 		try {
 			return jdbcTemplate.query(query, new ResultSetExtractor<Integer>(){
@@ -51,7 +51,7 @@ public class SubscriptionDao {
 		try {
 			DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");  
 			LocalDate now = LocalDate.now();
-			String query="select next_renewal_date from com_subscribed_users_details where msisdn='"+msisdn+"' and biller_id='"+propertiesReader.getBp()+"' and publisher='"+propertiesReader.getPublisher()+"' order by next_renewal_date desc limit 1";
+			String query="select next_renewal_date from com_subscribed_users_details where msisdn='"+msisdn+"' and publisher='"+propertiesReader.getPublisher()+"' order by next_renewal_date desc limit 1";
 			logger.info("Query: "+query);
 			return jdbcTemplate.query(query,new ResultSetExtractor<String>(){
 				@Override

@@ -26,13 +26,16 @@ public class TransactionService {
 	@Autowired
 	PacksDao packs;
 	
-	public int saveTransactionInfo(String serviceId) {
+	public long saveTransactionInfo(int serviceId,String interfacee,String bp,String publisher,String clickId,int packId,String userType,String msisdn) {
 		DateTimeFormatter tagDtf = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");  
 		LocalDateTime tagNow = LocalDateTime.now();
 		String uniqId=tagDtf.format(tagNow);
-		Packs cp = packs.getPackDetails(serviceId);
-		Transaction transaction=new Transaction(0,uniqId,cp.getPackId(),propertiesReader.getInterfacee(),propertiesReader.getBp(),0,propertiesReader.getPublisher(),"NA",propertiesReader.getProductId(),propertiesReader.getRequestedPrice());
-		return transactiondao.insertdetails(transaction);
+		//Packs cp = packs.getPackDetails(serviceId);
+		Transaction transaction=new Transaction(0,uniqId,packId,interfacee,bp,0,publisher,clickId,propertiesReader.getProductId(),propertiesReader.getRequestedPrice());
+		return transactiondao.insertdetails(transaction,userType,msisdn);
+	}
+	public int updateMsisdn(String transId,String msisdn) {
+		return transactiondao.updateMsisdn(transId,msisdn);
 	}
 	public int updateMsisdn(String msisdn,Integer transactionId,String sessionId) {
 		Transaction transaction=new Transaction(msisdn,transactionId,sessionId);
@@ -42,9 +45,17 @@ public class TransactionService {
 		Transaction transaction=new Transaction(msisdn,sessionId);
 		return transactiondao.updateBillingTransaction(transaction);
 	}
-	public int updateBillingTransactionCharge(String msisdn,String serviceId) {
-		 transactiondao.updateChargeAmmountAndBillingStatus(msisdn,serviceId);
-		 return 1;
+	public int updateBillingTransactionCharge(String msisdn,String serviceId,String billingStatus) {
+		 int count=transactiondao.updateChargeAmmountAndBillingStatus(msisdn,serviceId,billingStatus);
+		 return count;
+	}
+	public int updateBillingTransactionChargeForMobily(String msisdn,String serviceId,String billingStatus) {
+		 int count=transactiondao.updateChargeAmmountAndBillingStatusForMobily(msisdn,serviceId,billingStatus);
+		 return count;
+	}
+	public int updateBillingTransactionChargeForZain(String msisdn,String serviceId,String billingStatus) {
+		 int count=transactiondao.updateChargeAmmountAndBillingStatusForZain(msisdn,serviceId,billingStatus);
+		 return count;
 	}
 	public int updateCgStatus(String sessionId) {
 		return transactiondao.updateCgStatusDetails(sessionId);

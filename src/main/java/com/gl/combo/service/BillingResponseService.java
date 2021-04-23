@@ -18,9 +18,15 @@ public class BillingResponseService {
 	@Autowired
 	PacksDao packs;
 	
-	public int billingResponseInfo(String msisdn, Integer serviceId, String bearerId, String operationId, String spTransactionId) {
-		Packs cp = packs.getPackDetails(serviceId.toString());
-		BillingResponse billingResponse=new BillingResponse(msisdn,"CURRENT_TIMESTAMP()",serviceId.toString(),bearerId.toString(),operationId,cp.getProductId(),cp.getPrice(),cp.getDuration(),spTransactionId);
-		return billingresponsedao.insertdetails(billingResponse);
+	public int billingResponseInfo(String msisdn, Integer serviceId, String bearerId, String operationId, String spTransactionId,String bp,String action) {
+		Packs cp = packs.getPackDetails(serviceId);
+		String chrgAmt="";
+		if(action.equals("DCT")) {
+			chrgAmt="0.00";
+		}else {
+			chrgAmt=cp.getPrice();
+		}
+		BillingResponse billingResponse=new BillingResponse(msisdn,"CURRENT_TIMESTAMP()",serviceId.toString(),bearerId.toString(),operationId,cp.getProductId(),chrgAmt,cp.getDuration(),spTransactionId);
+		return billingresponsedao.insertdetails(billingResponse,bp,action);
 	}
 }
